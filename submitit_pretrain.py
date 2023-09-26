@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument("--ngpus", default=8, type=int, help="Number of gpus to request on each node")
     parser.add_argument("--nodes", default=2, type=int, help="Number of nodes to request")
     parser.add_argument("--timeout", default=4320, type=int, help="Duration of the job")
+    parser.add_argument("--job_name", default="mae", type=str)
     parser.add_argument("--job_dir", default="", type=str, help="Job dir. Leave empty for automatic.")
 
     parser.add_argument("--partition", default="learnfair", type=str, help="Partition where to submit")
@@ -32,8 +33,8 @@ def parse_args():
 
 def get_shared_folder() -> Path:
     user = os.getenv("USER")
-    if Path("/checkpoint/").is_dir():
-        p = Path(f"/checkpoint/{user}/experiments")
+    if Path(f"/fsx/{user}").is_dir():
+        p = Path(f"/fsx/{user}/checkpoint/convnext")
         p.mkdir(exist_ok=True)
         return p
     raise RuntimeError("No shared folder available")
@@ -93,12 +94,14 @@ def main():
 
     num_gpus_per_node = args.ngpus
     nodes = args.nodes
-    timeout_min = args.timeout
+    timeout_min = args.timeout * 60
 
     partition = args.partition
     kwargs = {}
+    """
     if args.use_volta32:
         kwargs['slurm_constraint'] = 'volta32gb'
+    """
     if args.comment:
         kwargs['slurm_comment'] = args.comment
 
@@ -115,7 +118,7 @@ def main():
         **kwargs
     )
 
-    executor.update_parameters(name="mae")
+    executor.update_parameters(name=args.job_name)
 
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
